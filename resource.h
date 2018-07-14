@@ -136,6 +136,8 @@
 #define IDC_REFERENCE_HANDLE_CMB        1143
 #define IDC_BUTTON1                     1144
 #define IDC_Connect                     1144
+#define IDC_Stop                        1146
+#define IDC_COMBO1                      1147
 #define ID_FILE_EXIT                    32771
 #define ID_SYSTEM_INITIALIZESYSTEM      32772
 #define ID_SYSTEM_ACTIVATEPORTS         32773
@@ -157,7 +159,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        147
 #define _APS_NEXT_COMMAND_VALUE         32790
-#define _APS_NEXT_CONTROL_VALUE         1145
+#define _APS_NEXT_CONTROL_VALUE         1148
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

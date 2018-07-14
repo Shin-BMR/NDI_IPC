@@ -67,6 +67,7 @@ Defines
 #define MODE_ACTIVATED		0x04
 
 #include "CommandHandling.h"	/* included the command handling header */
+#include "afxwin.h"
 
 
 
@@ -74,6 +75,7 @@ Defines
 	{
 		float px[4],py[4],pz[4],qw[4],qx[4],qy[4],qz[4];
 		unsigned long flag[4];
+		int cnt; 
 	}Marker;
 
 
@@ -204,6 +206,9 @@ Routine Definitions
 	void SetMode( int nMode );	/* set the mode of the dialog */
 public:
 	afx_msg void OnBnClickedConnect();
+	afx_msg void OnBnClickedSave();
+	afx_msg void OnBnClickedStop();
+	CComboBox m_combo_humanhead;
 };
 /************************END OF FILE*****************************/
 

@@ -73,3 +73,11 @@ Copyright (C) 2002, 2003, Northern Digital Inc. All rights reserved.
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_STDAFX_H__A5181994_B25E_4379_9465_335BFF080C2C__INCLUDED_)
+
+//------------------------------------//
+//--------디버깅 시 CMD창 이용--------//
+#ifdef _DEBUG
+#pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
+#endif
+//-----------------------------------//
+//-----------------------------------//

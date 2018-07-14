@@ -69,6 +69,11 @@ Project Files Included
 #include "INIFileRW.h"
 #include "Conversions.h"
 
+#include <fstream>
+#include <iostream>
+#include <stdlib.h>
+#include <string>
+
 /*****************************************************************
 Defines
 *****************************************************************/
@@ -79,13 +84,17 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 
-
+using namespace std;
+bool bStopSaveData = false;
+UINT SaveThread(LPVOID p);
+UINT ServiceThread(LPVOID);
+long long index;
+int total_cnt; // activation된 마커 개수.
+bool bFirstActivation;
 
 float px[5],py[5],pz[5],qw[5],qx[5],qy[5],qz[5];
 unsigned long lFlag[5];
 
-
-UINT ServiceThread(LPVOID);
 /*****************************************************************
 Global Variables
 *****************************************************************/
@@ -186,6 +195,7 @@ void CCombinedAPISampleDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_TOOL_TYPE, m_szToolType);
 	DDX_Text(pDX, IDC_PARTNUMBER, m_szPartNumber);
 	//}}AFX_DATA_MAP
+	DDX_Control(pDX, IDC_COMBO1, m_combo_humanhead);
 }
 
 BEGIN_MESSAGE_MAP(CCombinedAPISampleDlg, CDialog)
@@ -218,6 +228,8 @@ BEGIN_MESSAGE_MAP(CCombinedAPISampleDlg, CDialog)
 	ON_BN_CLICKED(IDC_EULER_ANGLES, OnEulerAngles)
 	//}}AFX_MSG_MAP
 	ON_BN_CLICKED(IDC_Connect, &CCombinedAPISampleDlg::OnBnClickedConnect)
+	ON_BN_CLICKED(IDC_SAVE, &CCombinedAPISampleDlg::OnBnClickedSave)
+	ON_BN_CLICKED(IDC_Stop, &CCombinedAPISampleDlg::OnBnClickedStop)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -294,6 +306,16 @@ BOOL CCombinedAPISampleDlg::OnInitDialog()
 	m_bPortsActivated = FALSE;
 
 	m_nCOMPort = 0;
+	
+	m_combo_humanhead.AddString("1");
+	m_combo_humanhead.AddString("2");
+	m_combo_humanhead.AddString("3");
+	m_combo_humanhead.AddString("4");
+	m_combo_humanhead.AddString("5");
+
+	
+	m_combo_humanhead.SetCurSel(0);
+
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }/* OnInitDialog */
@@ -607,6 +629,8 @@ void CCombinedAPISampleDlg::OnTrackingBut()
 	else
 		nStopTracking();
 } /* OnTrackingBut */
+
+
 /*****************************************************************
 Name:				nActivePorts
 
@@ -649,10 +673,16 @@ int CCombinedAPISampleDlg::nActivatePorts()
 		m_szPartNumber = _T("");
 		UpdateData(false);
 
+		bFirstActivation = true;
+
 		for ( int i = NO_HANDLES; i > 0; i-- )
 		{
 			if ( pCommandHandling->m_dtHandleInformation[i].HandleInfo.bInitialized == 1 ) 
 			{
+				if(bFirstActivation){ // SROM 파일 셋팅한 마커 개수 확인하여 전달하기 위해서  
+					total_cnt = i;
+					bFirstActivation = false;
+				}
 				sprintf( pszPortID, "%02X", i );
 				if( pCommandHandling->m_dtHandleInformation[i].szToolType[1] != '8' )
 				{
@@ -809,7 +839,6 @@ UINT FillTrackingTable( LPVOID pParam)
 	AfxEndThread( 0, TRUE );
 	return 0;
 } /* FillTrackingTable */
-
 
 /*****************************************************************
 Name:				nGetSystemTransformData
@@ -972,18 +1001,17 @@ LONG CCombinedAPISampleDlg::nGetSystemTransformData( UINT wParam, LONG lParam )
 					m_ctlTrackingList.SetItemText( nRow, 10, "OOV" );
 				else
 					m_ctlTrackingList.SetItemText( nRow, 10, "OK" );
-
-
 				
-				px[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.x;
-				py[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.y;
-				pz[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.z;
-				qw[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.q0;
-				qx[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qx;
-				qy[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qy;
-				qz[i-1]=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qz;
+				// ------------------------------------------------------------------- //
+				px[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.x;
+				py[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.y;
+				pz[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.translation.z;
+				qw[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.q0;
+				qx[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qx;
+				qy[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qy;
+				qz[i-1]	=pCommandHandling->m_dtHandleInformation[i].Xfrms.rotation.qz;
 				lFlag[i-1] =pCommandHandling->m_dtHandleInformation[i].Xfrms.ulFlags;
-
+				// ------------------------------------------------------------------- //
 
 			}/* if */
 			else 
@@ -1018,6 +1046,16 @@ LONG CCombinedAPISampleDlg::nGetSystemTransformData( UINT wParam, LONG lParam )
 				m_ctlTrackingList.SetItemText( nRow, 5, "---" );
 				m_ctlTrackingList.SetItemText( nRow, 6, "---" );
 				m_ctlTrackingList.SetItemText( nRow, 7, "---" );
+
+				// ------------------------------------------------------------------- //
+				px[i-1]	= 0;	py[i-1]	= 0;	pz[i-1]	= 0;
+				qw[i-1]	= 0;	qx[i-1]	= 0;	qy[i-1]	= 0;		qz[i-1]	= 0;
+				lFlag[i-1] =pCommandHandling->m_dtHandleInformation[i].Xfrms.ulFlags;
+				// ------------------------------------------------------------------- //
+
+
+
+
 				if( !m_bUseEulerAngles )
 					m_ctlTrackingList.SetItemText( nRow, 8, "---" );
 				else
@@ -1035,10 +1073,8 @@ LONG CCombinedAPISampleDlg::nGetSystemTransformData( UINT wParam, LONG lParam )
 
 	m_ctlTrackingList.RedrawItems(0, m_ctlTrackingList.GetItemCount()-1);
 	m_ctlTrackingList.UpdateWindow();
-
 	return 1;
 } /* nGetSystemTransformData */
-
 
 /*****************************************************************
 Name:				nComPortTimeout
@@ -1723,7 +1759,7 @@ UINT ServiceThread(LPVOID p)
 		hPipe=CreateFile(stPipeName,GENERIC_WRITE|GENERIC_READ,0,
 					NULL,OPEN_EXISTING,0x00000080,NULL);
 		Marker *marker=new Marker();
-		for(int j=0;j<4;j++){
+		for(int j=0;j< total_cnt;j++){
 		marker->px[j]=px[j];
 		marker->py[j]=py[j];
 	    marker->pz[j]=pz[j];
@@ -1732,6 +1768,7 @@ UINT ServiceThread(LPVOID p)
 		marker->qy[j]=qy[j];
 		marker->qz[j]=qz[j];
 		marker->flag[j]=lFlag[j];
+		marker->cnt = total_cnt;
 		}
 		
 		WriteFile(hPipe,marker,dataSize2,&dwWritten,NULL);
@@ -1745,4 +1782,57 @@ UINT ServiceThread(LPVOID p)
 	DisconnectNamedPipe(hPipe);
 	CloseHandle(hPipe);
 	return 0;
+}
+
+// 현재시간을 string type으로 return하는 함수
+const std::string currentDateTime() {
+    time_t     now = time(0); //현재 시간을 time_t 타입으로 저장
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct); // YYYY-MM-DD.HH:mm:ss 형태의 스트링
+
+    return buf;
+}
+
+void CCombinedAPISampleDlg::OnBnClickedSave()
+{
+	index = m_combo_humanhead.GetCurSel();
+	AfxBeginThread(SaveThread,&index);
+}
+
+UINT SaveThread(LPVOID p){
+
+	string current_date = currentDateTime();
+	current_date = current_date.substr(0,10);
+	string index_ = to_string(index);
+	current_date = index_ + "_Saved_" + current_date + ".txt";
+	ofstream file_writer(current_date.c_str());
+	
+	bStopSaveData = false;
+
+	if(!file_writer.is_open()){
+		cout<<"Could not open file!" <<endl;
+	}
+
+	cout << current_date << endl;
+	
+	for(;;){
+		if(lFlag[2] == TRANSFORM_MISSING){
+			cout << "Could not read the marker!" <<endl;
+		}
+		else if(bStopSaveData == false){
+			file_writer << px[2] << " " << py[2] << " " << pz[2] << endl;
+		}
+		else{
+			cout << "Stop to save the data.." << endl;
+			return TRUE;
+		}
+	}
+	return TRUE;
+}
+
+void CCombinedAPISampleDlg::OnBnClickedStop()
+{
+	bStopSaveData = true;
 }
